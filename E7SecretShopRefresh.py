@@ -11,10 +11,9 @@ import re
 
 #Library
 import pyautogui
-import pygetwindow as gw
+import linux_window as gw
 import cv2
 import numpy as np
-import keyboard
 from PIL import ImageGrab
 import random
 
@@ -117,25 +116,19 @@ class SecretShopRefresh:
     def start(self):
         if self.loop_active or not self.loop_finish:
             return
-        
+
         self.loop_active = True
-        self.loop_finish = False 
-        keyboard_thread = threading.Thread(target=self.checkKeyPress)
+        self.loop_finish = False
         refresh_thread = threading.Thread(target=self.shopRefreshLoop)
-        keyboard_thread.daemon = True
         refresh_thread.daemon = True
-        keyboard_thread.start()
         refresh_thread.start()
         if self.join_thread:
-            keyboard_thread.join()
-            refresh_thread.join()
-
-    #Threads
-    def checkKeyPress(self):
-        while self.loop_active and not self.loop_finish:
-            self.loop_active = not keyboard.is_pressed('esc')
-        self.loop_active = False
-        print('Terminating shop refresh ...')
+            try:
+                refresh_thread.join()
+            except KeyboardInterrupt:
+                print('Terminating shop refresh ...')
+                self.loop_active = False
+                refresh_thread.join()
 
     def refreshFinishCallback(self):
         print('Terminated!')
@@ -448,8 +441,8 @@ class SecretShopRefresh:
         return True
 
     def clickConfirmBuy(self):
-        x = self.window.left + self.window.width * 0.55
-        y = self.window.top + self.window.height * 0.70
+        x = self.window.left + self.window.width * 0.586
+        y = self.window.top + self.window.height * 0.706
         pyautogui.moveTo(x, y)
         pyautogui.click(clicks=2, interval=self.mouse_sleep)
         time.sleep(self.mouse_sleep)
@@ -462,16 +455,16 @@ class SecretShopRefresh:
 
     #REFRESH MACRO
     def clickRefresh(self):
-        x = self.window.left + self.window.width * 0.20
-        y = self.window.top + self.window.height * 0.90
+        x = self.window.left + self.window.width * 0.169
+        y = self.window.top + self.window.height * 0.918
         pyautogui.moveTo(x, y)
         pyautogui.click(clicks=2, interval=self.mouse_sleep)
         time.sleep(self.mouse_sleep)
         self.clickConfirmRefresh()
 
     def clickConfirmRefresh(self):
-        x = self.window.left + self.window.width * 0.58
-        y = self.window.top + self.window.height * 0.65
+        x = self.window.left + self.window.width * 0.584
+        y = self.window.top + self.window.height * 0.639
         pyautogui.moveTo(x, y)
         pyautogui.click(clicks=2, interval=self.mouse_sleep)
         time.sleep(self.screenshot_sleep)   #Account for Loading
@@ -540,316 +533,38 @@ class AppConfig():
         self.DEBUG = False
         
 
-class AutoRefreshGUI:
-    def __init__(self):
-        self.app_config = AppConfig()
-        self.root = tk.Tk()
-        
-        #gui
-        #color
-        self.unite_bg_color = '#171717'
-        self.unite_text_color = '#dddddd'
-
-        self.root.config(bg=self.unite_bg_color)
-        #self.root.attributes("-alpha", 0.95)
-
-        self.root.title('SHOP AUTO REFRESH')
-        self.root.geometry('420x745')
-        self.root.minsize(420, 745)
-        icon_path = os.path.join('assets', 'gui_icon.ico')
-        self.root.iconbitmap(icon_path)
-        self.title_name = ''
-        self.mouse_speed = 0.3
-        self.screenshot_speed = 0.3
-        self.ignore_path = {'fb.png'}
-        self.keep_image_open = []
-        self.lock_start_button = False
-        self.budget = ''
-
-        #app title and image        #apply ui change here
-        app_title = tk.Label(self.root, text='Epic Seven shop refresh',
-                             font=('Helvetica',24),
-                             bg=self.unite_bg_color,
-                             fg=self.unite_text_color)
-        
-        #title selection combo box
-        def onSelect(event):
-            t_name = titles_combo_box.get()
-            if t_name not in gw.getAllTitles():
-                self.start_button.config(state=tk.DISABLED)
-                return
-            
-            self.title_name = titles_combo_box.get()
-            if not self.lock_start_button:
-                self.start_button.config(state=tk.NORMAL)
-
-        def onEnter(event):
-            title = titles_combo_box.get()
-            if title == '' or title not in gw.getAllTitles():
-                self.start_button.config(state=tk.DISABLED)
-                return
-            self.title_name = titles_combo_box.get()
-            if not self.lock_start_button:
-                self.start_button.config(state=tk.NORMAL)
-
-        #sort title
-        titles = [title for title in self.app_config.RECOGNIZE_TITLES]
-        titles.sort()
-
-        titles_combo_box = ttk.Combobox(master=self.root,
-                                    values=titles)
-        titles_combo_box.config()       #apply ui change here
-        titles_combo_box.bind('<<ComboboxSelected>>', onSelect)
-        titles_combo_box.bind('<KeyRelease>', onEnter)
-        
-        #special setting
-        special_frame = tk.Frame(self.root, bg=self.unite_bg_color)
-        self.hint_cbv = tk.BooleanVar(value=True)
-        self.move_zerozero_cbv = tk.BooleanVar(value=True)
-        # self.random_click_cbv = tk.BooleanVar(value=False)
-        # self.debug_cbv = tk.BooleanVar(value=False)
-        
-        def setupSpecialSetting(label, value):
-            frame = tk.Frame(special_frame, bg=self.unite_bg_color)
-            special_label = tk.Label(master=frame,
-                             text=label,
-                             bg=self.unite_bg_color,
-                             fg=self.unite_text_color,
-                             font=('Helvetica',12))
-            special_cb = tk.Checkbutton(master=frame,
-                                font=('Helvetica',14),
-                                variable=value,
-                                bg=self.unite_bg_color)
-            special_cb.select()
-            special_label.pack(side=tk.LEFT)
-            special_cb.pack(side=tk.RIGHT)
-            frame.pack()
-
-        setupSpecialSetting('Hint:', self.hint_cbv)
-        setupSpecialSetting('Auto move emulator window to top left:', self.move_zerozero_cbv)
-        
-        # setupSpecialSetting('Random click offset:', self.random_click_cbv)
-        # setupSpecialSetting('Check random click offset:', self.debug_cbv)
-
-        #setting frame
-        setting_frame = tk.Frame(self.root)
-        setting_frame.config(bg=self.unite_bg_color)        #apply ui change here
-        def packSettingEntry(text, default = None):
-            frame = tk.Frame(setting_frame, bg=self.unite_bg_color, pady=4)
-            label = tk.Label(master=frame,
-                             text=text,
-                             bg=self.unite_bg_color,
-                             fg=self.unite_text_color,
-                             font=('Helvetica',12))         #apply ui change here
-            entry = tk.Entry(master=frame,
-                             bg='#333333',
-                             fg=self.unite_text_color,
-                             font=('Helvetica',12),
-                             width=10)
-            label.pack(side=tk.LEFT)
-            if default or default == 0:
-                entry.insert(0, default)
-            
-            entry.pack(side=tk.RIGHT)
-            frame.pack()
-            return entry
-
-
-        #start refreshing button
-        self.start_button = tk.Button(master=self.root,
-                                text='Start refresh',
-                                font=('Helvetica',14),
-                                state=tk.DISABLED,
-                                command=self.startShopRefresh)
-        #check if recognize titles match with any window
-        if titles:
-            for t in titles:
-                if t in gw.getAllTitles():
-                    self.title_name = t
-                    titles_combo_box.set(self.title_name)
-                    if not self.lock_start_button:
-                        self.start_button.config(state=tk.NORMAL)
-                    break
-        #check for google play title
-        if not self.title_name:
-            google_play_title_pattern = re.compile(r"^(Epic Seven|에픽세븐) - \w+$", re.UNICODE)
-            for t in gw.getAllTitles():
-                if google_play_title_pattern.fullmatch(t):
-                    self.title_name = t
-                    titles_combo_box.set(self.title_name)
-                    if not self.lock_start_button:
-                        self.start_button.config(state=tk.NORMAL)
-                    break
-
-        #UI from top to down
-        app_title.pack(pady=(15,0))
-        #Step 1 Select the emulator
-        #Type in the window title of your emulator. For example, window title of this program is: SHOP AUTO REFRESH
-        self.packMessage('Select emulator or type emulator\'s window title:')
-        titles_combo_box.pack()
-        #Step 2 Select item
-        self.packMessage('Select item that you are looking for:')
-        for index, item in enumerate(self.app_config.ALL_ITEMS):
-            self.keep_image_open.append(ImageTk.PhotoImage(Image.open(os.path.join('assets', item[0]))))
-            self.packItem(index, item[0])
-        self.packMessage('Setting:', 18, (10,0))
-        #Step 3 Select setting
-        #check if input is valid
-        def validateFloat(value, action):
-            if action == '1':
-                try:
-                    float_value = float(value)
-                    return float_value >= 0 and float_value <= 10
-                except:
-                    return False
-            return True
-        
-        def validateInt(value):
-            try:
-                if value == '':
-                    return True
-                int_value = int(value)
-                if int_value > 100000000:
-                    return False
-                else:
-                    return value.isdigit()
-            except:
-                return False
-        
-        valid_float_reg = self.root.register(validateFloat)
-        self.mouse_speed_entry = packSettingEntry('Mouse speed (s):', self.mouse_speed)
-        self.screenshot_speed_entry = packSettingEntry('Screenshot speed (s):', self.screenshot_speed)
-        self.mouse_speed_entry.config(validate='key', validatecommand=(valid_float_reg, '%P', '%d'))
-        self.screenshot_speed_entry.config(validate='key', validatecommand=(valid_float_reg, '%P', '%d'))
-
-        valid_int_reg = self.root.register(validateInt)
-        self.limit_spend_entry = packSettingEntry('How many skystone do you want to spend? :', None)
-        self.limit_spend_entry.config(validate='key', validatecommand=(valid_int_reg, '%P'))
-
-        #Step 3.5 special setting and setting
-        special_frame.pack(pady=(0,5))
-        setting_frame.pack()
-
-        #Step 4 profit
-        self.start_button.pack(pady=(30,0))
-        
-        self.root.mainloop()
-        
-    def packItem(self, index, path):        #change ui here
-
-        def updateIgnore():
-            if cbv.get() == 1:
-                self.ignore_path.discard(path)
-            else:
-                self.ignore_path.add(path)
-        
-        cbv = tk.IntVar()
-        frame = tk.Frame(self.root, bg=self.unite_bg_color, pady=10)
-        cb = tk.Checkbutton(master=frame, variable=cbv, command=updateIgnore, bg=self.unite_bg_color)
-        cb.pack(side=tk.LEFT)
-        
-        if path in self.app_config.MANDATORY_PATH:
-            cb.config(state=tk.DISABLED)
-            cb.select()
-        
-        image_label = tk.Label(master=frame, image=self.keep_image_open[index], bg='#FFBF00')
-        image_label.pack(side=tk.RIGHT)
-        frame.pack()
-
-    def packMessage(self, message, text_size=14, pady=10):               #apply ui change here
-        new_label = tk.Label(self.root, text=message, font=('Helvetica',text_size), bg=self.unite_bg_color, fg=self.unite_text_color)
-        new_label.pack(pady=pady)
-        return new_label
-
-    def refreshComplete(self):
-        print('Terminated!')
-        self.root.title('SHOP AUTO REFRESH')
-        self.start_button.config(state=tk.NORMAL)
-        self.lock_start_button = False
-
-    #start refresh loop    
-    def startShopRefresh(self):
-        self.root.title('Press ESC to stop!')
-        self.lock_start_button = True
-        self.start_button.config(state=tk.DISABLED)
-        self.ssr = SecretShopRefresh(title_name=self.title_name, callback=self.refreshComplete, debug=self.app_config.DEBUG)
-
-        if self.hint_cbv.get():
-            self.ssr.tk_instance = self.root
-
-        if not self.move_zerozero_cbv.get():
-            self.ssr.allow_move = True
-
-        #setting item to refresh for
-        for item in self.app_config.ALL_ITEMS:
-            if item[0] not in self.ignore_path:
-                self.ssr.addShopItem(path=item[0], name=item[1], price=item[2])
-        
-        #setting mouse speed
-        self.ssr.mouse_sleep = float(self.mouse_speed_entry.get()) if self.mouse_speed_entry.get() != '' else self.mouse_speed
-        self.ssr.screenshot_sleep = float(self.screenshot_speed_entry.get()) if self.screenshot_speed_entry.get() != '' else self.screenshot_speed
-        self.ssr.mouse_sleep = max(0.01, self.ssr.mouse_sleep)
-        self.ssr.screenshot_sleep = max(0.01, self.ssr.screenshot_sleep)
-
-        #setting up skystone budget
-        if self.limit_spend_entry.get() != '':
-            self.ssr.budget = int(self.limit_spend_entry.get())
-
-        print('refresh shop start!')
-        print('Budget:', self.ssr.budget)
-        print('Mouse speed:', self.ssr.mouse_sleep)
-        print('Screenshot speed', self.ssr.screenshot_sleep)
-        if self.ssr.budget and self.ssr.budget >= 1000:
-            ev_cost = 1691.04536 * int(self.ssr.budget) * 2
-            ev_cov = 0.006602509 * int(self.ssr.budget) * 2
-            ev_mys = 0.001700646 * int(self.ssr.budget) * 2
-            print('Approximation based on budget:')
-            print(f'Cost: {int(ev_cost):,}')
-            print(f'Cov: {ev_cov}')
-            print(f'mys: {ev_mys}')
-        print()
-        
-        self.ssr.start()
 
 if __name__ == '__main__':
-    # Secret shop with GUI
-    gui = AutoRefreshGUI()
-    
-    # # Uncomment below code start secret shop without gui, remember to comment "gui = AutoRefreshGUI()" above
-    # # Here are some parameter that you can pass in to secret shop class
-    # # title_name: str      name of your emulator window
-    # # call_back: func      callback function when the macro terminates
-    # # budget: int          the ammont of skystone that you want to spend
-    # # debug: boolean       this will help you debug problem with the program
-    # # join_thread: boolean        you have to join thread if nothing is blocking the main process from completing
-    
-    # if not os.path.isdir(os.path.join('assets')):
-    #     print('\'assets\' folder is missing! Make sure you have the assets folder in the same directory')
-    #     input('Press enter to exit ...')
+    if not os.path.isdir('assets'):
+        print('\'assets\' folder is missing! Make sure you have the assets folder in the same directory')
+        raise SystemExit(1)
 
-    # else:
-    #     print('Here are the active windows\n')
-    #     for title in gw.getAllTitles():
-    #         if title != '':
-    #             print(title)
-    #     print()
-    #     win = input('Emulator\'s window name: ')
-        
-    #     if win in gw.getAllTitles() and win != '':
-    #         try:
-    #             budget = int(input('Amount of skystone that you want to spend: '))
-    #         except:
-    #             print('invalid input, default to 1000 skystone budget')
-    #             budget = 1000
+    config = AppConfig()
 
-    #         ssr = SecretShopRefresh(title_name=win, budget=budget, join_thread=True)       #init macro instance with the application title being epic seven
-    #         ssr.addShopItem('cov.jpg', 'Covenant bookmark', 184000)     #adding items to refresh, cov.jpg needs to be in: assets/cov.jpg
-    #         ssr.addShopItem('mys.jpg', 'Mystic medal', 280000)
-    #         #ssr.addShopItem('fb.jpg', 'Friendship bookmark', 18000)     #comment out this, if you don't need to test
-    #         input('press Enter to start ...')
-    #         print('press esc to stop shop refresh')
-    #         ssr.start()     #Start macro instance, use ESC to terminate macro
+    print('Active windows:\n')
+    for title in gw.getAllTitles():
+        if title != '':
+            print(title)
+    print()
 
-    #     else:
-    #         input('Wrong title, close program')    
-    #     # Eric baby piles approved
+    win = input('Window title: ')
+    if win not in gw.getAllTitles() or win == '':
+        raise SystemExit('Wrong title, closing.')
+
+    try:
+        budget = int(input('Amount of skystone to spend: '))
+    except ValueError:
+        print('Invalid input, defaulting to 1000 skystone budget')
+        budget = 1000
+
+    include_friendship = input('Include friendship bookmark too? [y/N]: ').strip().lower() == 'y'
+
+    ssr = SecretShopRefresh(title_name=win, budget=budget, join_thread=True)
+    for path, name, price in config.ALL_ITEMS:
+        if path == 'fb.png' and not include_friendship:
+            continue
+        ssr.addShopItem(path, name, price)
+
+    input('Press Enter to start ...')
+    print('Press Ctrl+C to stop refreshing')
+    ssr.start()
