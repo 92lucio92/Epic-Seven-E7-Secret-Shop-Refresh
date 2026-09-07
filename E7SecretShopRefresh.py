@@ -16,6 +16,24 @@ import cv2
 import numpy as np
 from PIL import ImageGrab
 import random
+from Xlib import display as _xdisplay, X as _X
+from Xlib.ext import xtest as _xtest
+
+_scroll_display = _xdisplay.Display()
+
+def _wheelScroll(x, y, ticks):
+    """pyautogui.scroll() doesn't register on this Xephyr/Wine setup; raw
+    XTest button4/5 (scroll up/down) does, so this bypasses pyautogui for
+    wheel scrolling specifically."""
+    button = 4 if ticks > 0 else 5
+    _xtest.fake_input(_scroll_display, _X.MotionNotify, x=int(x), y=int(y))
+    _scroll_display.sync()
+    for _ in range(abs(ticks)):
+        _xtest.fake_input(_scroll_display, _X.ButtonPress, button)
+        _scroll_display.sync()
+        _xtest.fake_input(_scroll_display, _X.ButtonRelease, button)
+        _scroll_display.sync()
+        time.sleep(0.05)
 
 class ShopItem:
     def __init__(self, path='', image=None, price=0, count=0):
@@ -435,6 +453,7 @@ class SecretShopRefresh:
             return False
         x, y = pos
         pyautogui.moveTo(x, y)
+        time.sleep(0.15)
         pyautogui.click(clicks=2, interval=self.mouse_sleep)
         time.sleep(self.mouse_sleep)
         self.clickConfirmBuy()
@@ -444,6 +463,7 @@ class SecretShopRefresh:
         x = self.window.left + self.window.width * 0.586
         y = self.window.top + self.window.height * 0.706
         pyautogui.moveTo(x, y)
+        time.sleep(0.15)
         pyautogui.click(clicks=2, interval=self.mouse_sleep)
         time.sleep(self.mouse_sleep)
         time.sleep(self.screenshot_sleep)   #Account for Loading
@@ -458,6 +478,7 @@ class SecretShopRefresh:
         x = self.window.left + self.window.width * 0.169
         y = self.window.top + self.window.height * 0.918
         pyautogui.moveTo(x, y)
+        time.sleep(0.15)
         pyautogui.click(clicks=2, interval=self.mouse_sleep)
         time.sleep(self.mouse_sleep)
         self.clickConfirmRefresh()
@@ -466,6 +487,7 @@ class SecretShopRefresh:
         x = self.window.left + self.window.width * 0.584
         y = self.window.top + self.window.height * 0.639
         pyautogui.moveTo(x, y)
+        time.sleep(0.15)
         pyautogui.click(clicks=2, interval=self.mouse_sleep)
         time.sleep(self.screenshot_sleep)   #Account for Loading
 
@@ -475,6 +497,7 @@ class SecretShopRefresh:
         x = self.window.left + self.window.width * 0.05
         y = self.window.top + self.window.height * 0.41
         pyautogui.moveTo(x, y)
+        time.sleep(0.15)
         pyautogui.click()
 
         time.sleep(self.mouse_sleep)
@@ -483,6 +506,7 @@ class SecretShopRefresh:
         x = self.window.left + self.window.width * 0.44
         y = self.window.top + self.window.height * 0.26
         pyautogui.moveTo(x, y)
+        time.sleep(0.15)
         pyautogui.click()
 
         time.sleep(self.mouse_sleep)
@@ -491,29 +515,20 @@ class SecretShopRefresh:
         x = self.window.left + self.window.width * 0.05
         y = self.window.top + self.window.height * 0.41
         pyautogui.moveTo(x, y)
+        time.sleep(0.15)
         pyautogui.click()
 
     def scrollShop(self):
         x = self.window.left + self.window.width * 0.58
         y = self.window.top + self.window.height * 0.65
-        pyautogui.moveTo(x, y)
-        time.sleep(0.05)
-        pyautogui.mouseDown(button='left')
-        time.sleep(0.05)
-        pyautogui.moveTo(x, y-self.window.height*0.277)
-        time.sleep(0.05)
-        pyautogui.mouseUp(button='left')
-        time.sleep(0.05)
-    
+        _wheelScroll(x, y, -6)
+        time.sleep(0.2)
+
     def scrollUp(self):
         x = self.window.left + self.window.width * 0.58
         y = self.window.top + self.window.height * 0.65
-        pyautogui.moveTo(x, y-self.window.height*0.277)
-        time.sleep(0.1)
-        pyautogui.mouseDown(button='left')
-        time.sleep(0.1)
-        pyautogui.moveTo(x, y)
-        pyautogui.mouseUp(button='left')
+        _wheelScroll(x, y, 6)
+        time.sleep(0.2)
 
 class AppConfig():
     def __init__(self):
