@@ -18,6 +18,7 @@ from PIL import ImageGrab
 import random
 from Xlib import display as _xdisplay, X as _X
 from Xlib.ext import xtest as _xtest
+import freya_telegram
 
 _scroll_display = _xdisplay.Display()
 
@@ -129,6 +130,7 @@ class SecretShopRefresh:
 
         self.tk_instance = tk_instance
         self.rs_instance = RefreshStatistic()
+        self.telegram = freya_telegram.connect_if_configured()
 
     #Start shop refresh macro
     def start(self):
@@ -152,8 +154,13 @@ class SecretShopRefresh:
         print('Terminated!')
         print(f'Refreshes: {self.rs_instance.refresh_count}')
         print(f'Total gold spent: {self.rs_instance.getTotalCost():,}')
+        items_str = ', '.join(f'{name}: {count}' for name, count in zip(self.rs_instance.getName(), self.rs_instance.getItemCount()))
         for name, count in zip(self.rs_instance.getName(), self.rs_instance.getItemCount()):
             print(f'  {name}: {count}')
+        if self.telegram:
+            self.telegram.notify(
+                f'*[Epic7]* Shop refresh finished — {self.rs_instance.refresh_count} refreshes, '
+                f'{self.rs_instance.getTotalCost():,} gold spent. {items_str}')
 
     def shopRefreshLoop(self):
         
@@ -257,6 +264,8 @@ class SecretShopRefresh:
                     if pos is not None:
                         self.clickBuy(pos)
                         shop_item.count += 1
+                        if self.telegram and key in ('cov.png', 'mys.png'):
+                            self.telegram.notify(f'*[Epic7]* Bought {shop_item.name} (now have {shop_item.count})')
                         brought.add(key)
 
                 #real time count UI update
@@ -302,6 +311,8 @@ class SecretShopRefresh:
                     if pos is not None:
                         self.clickBuy(pos)
                         shop_item.count += 1
+                        if self.telegram and key in ('cov.png', 'mys.png'):
+                            self.telegram.notify(f'*[Epic7]* Bought {shop_item.name} (now have {shop_item.count})')
 
                 if hint: updateMiniDisplay()
                 if not self.loop_active: break
@@ -319,7 +330,10 @@ class SecretShopRefresh:
                 pct = f'{spent / self.budget * 100:.0f}%' if self.budget else 'n/a'
                 budget_str = f'/{self.budget}' if self.budget else ''
                 items_str = ', '.join(f'{name}: {count}' for name, count in zip(self.rs_instance.getName(), self.rs_instance.getItemCount()))
-                print(f'[{pct}] refresh #{self.rs_instance.refresh_count} | skystone spent: {spent}{budget_str} | {items_str}')
+                status_line = f'[{pct}] refresh #{self.rs_instance.refresh_count} | skystone spent: {spent}{budget_str} | {items_str}'
+                print(status_line)
+                if self.telegram:
+                    self.telegram.notify(f'*[Epic7]* {status_line}', thread='shop')
 
                 time.sleep(self.mouse_sleep)
                 if self.window.title != self.title_name: break
