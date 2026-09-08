@@ -150,6 +150,10 @@ class SecretShopRefresh:
 
     def refreshFinishCallback(self):
         print('Terminated!')
+        print(f'Refreshes: {self.rs_instance.refresh_count}')
+        print(f'Total gold spent: {self.rs_instance.getTotalCost():,}')
+        for name, count in zip(self.rs_instance.getName(), self.rs_instance.getItemCount()):
+            print(f'  {name}: {count}')
 
     def shopRefreshLoop(self):
         
