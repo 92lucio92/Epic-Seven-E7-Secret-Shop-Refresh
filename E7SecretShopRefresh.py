@@ -314,6 +314,13 @@ class SecretShopRefresh:
                 #refresh shop
                 self.clickRefresh()
                 self.rs_instance.incrementRefreshCount()
+
+                spent = self.rs_instance.refresh_count * 3
+                pct = f'{spent / self.budget * 100:.0f}%' if self.budget else 'n/a'
+                total_items = sum(self.rs_instance.getItemCount())
+                budget_str = f'/{self.budget}' if self.budget else ''
+                print(f'[{pct}] refresh #{self.rs_instance.refresh_count} | skystone spent: {spent}{budget_str} | items collected: {total_items}')
+
                 time.sleep(self.mouse_sleep)
                 if self.window.title != self.title_name: break
 
